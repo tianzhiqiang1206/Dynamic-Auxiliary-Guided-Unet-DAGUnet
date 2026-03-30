@@ -1,3 +1,6 @@
+'''
+This code is used to calculate the MAE, RMSE, and CORR metrics, and to compute their averages for different lead times.
+'''
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
