@@ -23,8 +23,8 @@ def run_experiment(year_list):
 
     era5_data = xr.open_dataset(r'data\\era5_data_masked.nc')
     sic_data = xr.open_dataset(r'data\\sic_masked_with_sic.nc')
-    siv_data = xr.open_dataset(r'data\\siv_masked_with_sic.nc')
-    sit_data = xr.open_dataset(r'data\\sit_masked_with_sic.nc')
+    siv_data = xr.open_dataset(r'data\\siv_masked_with_siv.nc')
+    sit_data = xr.open_dataset(r'data\\sit_masked_with_sit.nc')
 
     sst = era5_data['sst'].data
     sea_ice_concentration = sic_data['sea_ice_concentration'].data
@@ -58,10 +58,11 @@ def run_experiment(year_list):
 
     input_days = 7
     predict_days = 7
-    patience = 5
+    patience = 10  # 早停：10个epoch不提升就停（按你要求）
+    lr_patience = 5  # 学习率衰减：5个epoch不提升就×0.1（按你要求）
     counter = 0
     best_val_loss = float('inf')
-    train_flag = False
+    train_flag = True  # 训练必须打开
     pretrain_flag = False
 
     best_model_path = rf'model/best_Unet_siv_pre7_{year_list[0]}_{year_list[-1]}.pth'
@@ -73,7 +74,7 @@ def run_experiment(year_list):
         batch_size=4, input_days=input_days, predict_days=predict_days)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = HISUnet(in_channels = 14, predict_days=predict_days).to(device) # in_channel = 7/14 for sic/siv prediction
+    model = HISUnet(in_channels = 14, predict_days=predict_days).to(device)
 
     def init_weights(m):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
@@ -88,8 +89,25 @@ def run_experiment(year_list):
         torch.cuda.manual_seed_all(42)
 
     model = model.to(device)
-    model.load_state_dict(torch.load(best_model_path))
+    
+    # ====================== 优化器 + 学习率调度器（你要的核心！）
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    
+    # 学习率衰减：验证损失5轮不下降 → ×0.1
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 
+        mode='min', 
+        factor=0.1, 
+        patience=lr_patience, 
+        verbose=True
+    )
+
+    try:
+        model.load_state_dict(torch.load(best_model_path))
+        print(f"load pretrained model: {best_model_path}")
+    except:
+        print("No pretrained model, training from scratch")
+
     mse_criterion = nn.MSELoss()
 
     if train_flag:
@@ -106,8 +124,6 @@ def run_experiment(year_list):
                 mse_loss = 0
                 for day in range(predict_days):
                     SIV_pred = SIV_preds[day]
-                    # SIC_pred = SIC_preds[day]          
-                    
                     target_day = day * 4
                     target_SIV = targets[:, target_day:target_day+2]
                     target_SIC = targets[:, target_day+2:target_day+3]
@@ -115,10 +131,7 @@ def run_experiment(year_list):
                     
                     loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                     loss_SIV = loss_SIV.sum() / mask.sum()
-                    # loss_SIC = mse_criterion(SIC_pred[:, 0], target_SIC[:, 0]) * mask
-                    # loss_SIC = loss_SIC.sum() / mask.sum()
-
-                    mse_loss += loss_SIV # + loss_SIC
+                    mse_loss += loss_SIV
 
                 loss = mse_loss
                 loss.backward()
@@ -126,6 +139,7 @@ def run_experiment(year_list):
                 running_loss += loss.item()
             train_loss = running_loss / len(train_loader)
 
+            # 验证
             model.eval()
             val_loss = 0.0
             with torch.no_grad():
@@ -137,95 +151,66 @@ def run_experiment(year_list):
                     mse_loss = 0
                     for day in range(predict_days):
                         SIV_pred = SIV_preds[day]
-                        # SIC_pred = SIC_preds[day]
-                        
                         target_day = day * 4
                         target_SIV = targets[:, target_day:target_day+2]
-                        target_SIC = targets[:, target_day+2:target_day+3]
-                        target_SIT = targets[:, target_day+3:target_day+4]
-                        
                         loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                         loss_SIV = loss_SIV.sum() / mask.sum()
-                        # loss_SIC = mse_criterion(SIC_pred[:, 0], target_SIC[:, 0]) * mask
-                        # loss_SIC = loss_SIC.sum() / mask.sum()
-
-                        mse_loss += loss_SIV # loss_SIC
+                        mse_loss += loss_SIV
 
                     loss = mse_loss
                     val_loss += loss.item()
 
             val_loss /= len(val_loader)
-            print(f'Epoch {epoch + 1}/{num_epochs}, Train Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f}')
+            
+            # ====================== 更新学习率
+            scheduler.step(val_loss)
+            
+            print(f'Epoch {epoch + 1}/{num_epochs} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}')
+            current_lr = optimizer.param_groups[0]['lr']
+            print(f'Current Learning Rate: {current_lr:.8f}')
 
+            # ====================== 保存最优模型 + 早停
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(model.state_dict(), best_model_path)
                 counter = 0
+                print("✅ Best model saved!")
             else:
                 counter += 1
+                print(f"⚠️ Early stopping counter: {counter}/{patience}")
                 if counter >= patience:
-                    print(f'Early stopping triggered at epoch {epoch + 1}')
+                    print(f"\n🛑 Early stopping triggered at epoch {epoch + 1}")
                     break
 
-    try:
-        model = model.to(device)
-        model.load_state_dict(torch.load(best_model_path))
-        print(f"load pretrained model: {best_model_path}")
-    except FileNotFoundError:
-        print(f"can not find {best_model_path}")
-
+    # 测试 & 保存结果
+    model.load_state_dict(torch.load(best_model_path))
     model.eval()
-    test_loss_SIC = 0.0
     test_loss_SIV = 0.0
     test_loss = 0.0
     all_SIV_pred = []
-    all_SIC_pred = []
     all_targets = []
 
-    count = 0
     with torch.no_grad():
         for inputs, targets, mask in test_loader:
             inputs, targets, mask = convert_to_float32(inputs, targets, mask)
             inputs, targets, mask = inputs.to(device), targets.to(device), mask.to(device)
-            SIV_preds= model(inputs)
+            SIV_preds = model(inputs)
 
-            mse_loss_SIC = 0
             mse_loss_SIV = 0
-            mse_loss = 0
             for day in range(predict_days):
                 SIV_pred = SIV_preds[day]
-                # SIC_pred = SIC_preds[day]
-                
                 target_day = day * 4
                 target_SIV = targets[:, target_day:target_day+2]
-                target_SIC = targets[:, target_day+2:target_day+3]
-                target_SIT = targets[:, target_day+3:target_day+4]
-                
                 loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                 loss_SIV = loss_SIV.sum() / mask.sum()
-                # loss_SIC = mse_criterion(SIC_pred[:, 0], target_SIC[:, 0]) * mask
-                # loss_SIC = loss_SIC.sum() / mask.sum()
-
                 mse_loss_SIV += loss_SIV
-                # mse_loss_SIV += loss_SIV
-                mse_loss += loss_SIV # loss_SIC
 
-            # test_loss_SIC += mse_loss_SIC.item()
             test_loss_SIV += mse_loss_SIV.item()
-            test_loss += mse_loss.item()
-
             all_SIV_pred.append([pred.detach().cpu().numpy() for pred in SIV_preds])
-            # all_SIC_pred.append([pred.detach().cpu().numpy() for pred in SIC_preds])
             all_targets.append(targets.detach().cpu().numpy())
-            count += 1
 
-        # test_loss_SIC /= len(test_loader)
         test_loss_SIV /= len(test_loader)
-        test_loss /= len(test_loader)
-        print(len(test_loader))
-        # print(f'SIC Test Loss: {test_loss_SIC:.6f}')
-        print(f'SIV Test Loss: {test_loss_SIV:.6f}')
-        print(f'Test Loss: {test_loss:.6f}')
+        print(f'\n✅ Test Loss (SIV): {test_loss_SIV:.6f}')
 
     save_multiday_test_results_to_nc_siv(
         all_SIV_pred,
@@ -244,6 +229,6 @@ if __name__ == "__main__":
     ]
 
     for i, year_list in enumerate(year_sets):
-        print(f"\n===== start {i+1}/{len(year_sets)} experiment，yesr list: {year_list} =====")
+        print(f"\n===== start {i+1}/{len(year_sets)} experiment，year list: {year_list} =====")
         run_experiment(year_list)
-        print(f"=====  {i+1}/{len(year_sets)} experiment is completed =====\n")
+        print(f"===== {i+1}/{len(year_sets)} experiment completed =====\n")
