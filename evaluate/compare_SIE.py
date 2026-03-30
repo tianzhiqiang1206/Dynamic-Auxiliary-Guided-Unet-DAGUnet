@@ -1,16 +1,18 @@
+'''
+This code is used to reproduce Fig. 4 and calculate the IIEE/UE/OE in Fig.4
+'''
 import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import xarray as xr
-from matplotlib.lines import Line2D  # 手动创建图例所需
-import pandas as pd  # 用于Excel保存
+from matplotlib.lines import Line2D 
+import pandas as pd
 from datetime import datetime
 
-years = [[2000,2007], [2005,2012],[2012,2019],[2013,2020]]  #, [2000,2023],[2005,2012],[2012,2019],[2013,2020]
+years = [[2000,2007], [2005,2012],[2012,2019],[2013,2020]]
 for year in years:
     target_year = year[1]
-    # 读取数据
     file_path = rf"F:\DAGUnet_code\newresult\predict_Unet_sic_pre7_{year[0]}_{year[1]}.nc"
     file_path1 = rf"F:\DAGUnet_code\newresult\predict_HISUnet_pre7_{year[0]}_{year[1]}.nc"
     file_path2 = rf"F:\DAGUnet_code\newresult\predict_DAGUnet_pre7_{year[0]}_{year[1]}.nc"
@@ -18,12 +20,10 @@ for year in years:
     ds1 = xr.open_dataset(file_path1)
     ds2 = xr.open_dataset(file_path2)
 
-    # 定义逆归一化函数
     def inverse_normalize(data, min_val, max_val):
         return data * (max_val - min_val) + min_val
 
     def calculate_iiee(sic_pred, sic_true, grid_area, boundary):
-        """计算IIEE、OE、UE"""
         pred_mask = (sic_pred > boundary).astype(np.float32)
         true_mask = (sic_true > boundary).astype(np.float32)
         oe_mask = np.logical_and(pred_mask == 1, true_mask == 0)
@@ -33,7 +33,6 @@ for year in years:
         iiee = oe + ue
         return iiee, oe, ue
 
-    # 定义参数
     sic_min = 0
     sic_max = 100
     projection = ccrs.LambertAzimuthalEqualArea(central_latitude=90, central_longitude=0)
@@ -50,7 +49,6 @@ for year in years:
     x_grid, y_grid = np.meshgrid(x, y)
     boundary_value = 15
 
-    # 定义月份日期范围
     start_date = datetime(year[1], 1, 8)
     end_date = datetime(year[1], 12, 24)
 
@@ -59,12 +57,10 @@ for year in years:
     else:
         month_days = [24,28,31,30,31,30,31,31,30,31,30,24]
 
-    # 3. 计算累计索引（每个月的起始索引）
-    cumulative_index = [0]  # 初始索引为0
+    cumulative_index = [0] 
     for days in month_days[:-1]:
         cumulative_index.append(cumulative_index[-1] + days)
 
-    # 4. 生成月份索引字典（包含起始/结束索引）
     month_indexs = []
     for month in range(1, 13):
         start_idx = cumulative_index[month-1]
@@ -155,7 +151,7 @@ for year in years:
                     title_fontsize=11)
 
             plt.tight_layout()
-            # plt.savefig(rf'figure\{target_year}_{month_num}_SIE_Compare_day{day_inx}.png', dpi=600, bbox_inches='tight')
+            plt.savefig(rf'figure\{target_year}_{month_num}_SIE_Compare_day{day_inx}.png', dpi=600, bbox_inches='tight')
             plt.close()
 
             print(f"Day {day_inx} IIEE value (km²):")
@@ -164,7 +160,7 @@ for year in years:
             print(f"DAGUnet: IIEE = {iiee_dagunet:.2f}, OE = {oe_dagunet:.2f}, UE = {ue_dagunet:.2f}")
 
         df = pd.DataFrame(results)
-        output_path = rf'F:\DAGUnet_code\newresult\SIE_visualization\{target_year}_{month_num}_IIEE_day1_to_day7.xlsx'  # 保存路径
+        output_path = rf'figure\{target_year}_{month_num}_IIEE_day1_to_day7.xlsx'
         df.to_excel(output_path, index=False) 
 
         print(f"\nMetrics are save in {output_path}")
