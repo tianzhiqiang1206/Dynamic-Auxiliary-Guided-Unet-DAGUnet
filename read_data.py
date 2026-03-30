@@ -19,9 +19,9 @@ class SeaIcePredictionDataset(Dataset):
         self.predict_days = predict_days
         self.num_samples = u.shape[0] - input_days - predict_days + 1
         height, width = u.shape[1:]
-        self.x_coords = np.arange(width) / width  # 归一化到 [0, 1]
-        self.y_coords = np.arange(height) / height  # 归一化到 [0, 1]
-        self.mask = sst[0] != 0  # 假设sst中值为0的区域是掩码区域
+        self.x_coords = np.arange(width) / width
+        self.y_coords = np.arange(height) / height
+        self.mask = sst[0] != 0
 
     def __len__(self):
         """返回数据集的样本数量"""
@@ -82,7 +82,7 @@ def create_data_loaders_by_year(sst, sea_ice_concentration, u, v, sea_ice_thickn
     def get_indices_for_years(years):
         indices = []
         for year in years:
-            year_idx = year - 2000 # train_years[0]
+            year_idx = year - 2000
             start, end = year_indices[year_idx]
             indices.extend(range(start, end + 1))
         return list(range(indices[0], indices[-1]))
