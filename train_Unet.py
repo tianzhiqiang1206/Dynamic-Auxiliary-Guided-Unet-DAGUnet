@@ -90,10 +90,7 @@ def run_experiment(year_list):
 
     model = model.to(device)
     
-    # ====================== 优化器 + 学习率调度器（你要的核心！）
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    
-    # 学习率衰减：验证损失5轮不下降 → ×0.1
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
         mode='min', 
@@ -139,7 +136,6 @@ def run_experiment(year_list):
                 running_loss += loss.item()
             train_loss = running_loss / len(train_loader)
 
-            # 验证
             model.eval()
             val_loss = 0.0
             with torch.no_grad():
@@ -161,15 +157,12 @@ def run_experiment(year_list):
                     val_loss += loss.item()
 
             val_loss /= len(val_loader)
-            
-            # ====================== 更新学习率
             scheduler.step(val_loss)
             
             print(f'Epoch {epoch + 1}/{num_epochs} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}')
             current_lr = optimizer.param_groups[0]['lr']
             print(f'Current Learning Rate: {current_lr:.8f}')
 
-            # ====================== 保存最优模型 + 早停
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(model.state_dict(), best_model_path)
@@ -182,7 +175,6 @@ def run_experiment(year_list):
                     print(f"\n🛑 Early stopping triggered at epoch {epoch + 1}")
                     break
 
-    # 测试 & 保存结果
     model.load_state_dict(torch.load(best_model_path))
     model.eval()
     test_loss_SIV = 0.0
