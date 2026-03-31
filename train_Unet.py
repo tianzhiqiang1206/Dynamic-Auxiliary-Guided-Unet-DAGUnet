@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from model_Unet import HISUnet
+from model_Unet import Unet
 from read_data import *
 import numpy as np
 import xarray as xr
@@ -58,12 +58,11 @@ def run_experiment(year_list):
 
     input_days = 7
     predict_days = 7
-    patience = 10  # 早停：10个epoch不提升就停（按你要求）
-    lr_patience = 5  # 学习率衰减：5个epoch不提升就×0.1（按你要求）
+    patience = 10 
+    lr_patience = 5
     counter = 0
     best_val_loss = float('inf')
-    train_flag = True  # 训练必须打开
-    pretrain_flag = False
+    train_flag = True
 
     best_model_path = rf'model/best_Unet_siv_pre7_{year_list[0]}_{year_list[-1]}.pth'
     output_nc_path = f'model/predict_Unet_siv_pre7_{year_list[0]}_{year_list[-1]}.nc'
