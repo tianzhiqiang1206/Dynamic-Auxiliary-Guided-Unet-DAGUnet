@@ -120,10 +120,9 @@ def run_experiment(year_list):
                 mse_loss = 0
                 for day in range(predict_days):
                     SIV_pred = SIV_preds[day]
-                    target_day = day * 4
+                    target_day = day * 3
                     target_SIV = targets[:, target_day:target_day+2]
                     target_SIC = targets[:, target_day+2:target_day+3]
-                    target_SIT = targets[:, target_day+3:target_day+4]
                     
                     loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                     loss_SIV = loss_SIV.sum() / mask.sum()
@@ -146,7 +145,7 @@ def run_experiment(year_list):
                     mse_loss = 0
                     for day in range(predict_days):
                         SIV_pred = SIV_preds[day]
-                        target_day = day * 4
+                        target_day = day * 3
                         target_SIV = targets[:, target_day:target_day+2]
                         loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                         loss_SIV = loss_SIV.sum() / mask.sum()
@@ -190,7 +189,7 @@ def run_experiment(year_list):
             mse_loss_SIV = 0
             for day in range(predict_days):
                 SIV_pred = SIV_preds[day]
-                target_day = day * 4
+                target_day = day * 3
                 target_SIV = targets[:, target_day:target_day+2]
                 loss_SIV = mse_criterion(SIV_pred[:, 0], target_SIV[:, 0]) * mask + mse_criterion(SIV_pred[:, 1], target_SIV[:, 1]) * mask
                 loss_SIV = loss_SIV.sum() / mask.sum()
