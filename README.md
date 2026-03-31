@@ -4,6 +4,6 @@ Dynamic Auxiliary-Guided Unet (DAGUnet) is a deep-learning model for Arctic sea 
 
 Currently, only a portion of the code related to DAGUnet has been uploaded; the complete code and data are currently being prepared.
 
-The data related to this project, including the model's input data and prediction results, can be accessed via xxx.
+All the training and testing data for DAGUnet used in this paper can be downloaded from the [[Beihang Cloud Drive]](https://bhpan.buaa.edu.cn/link/AADBF25FF2D92B44C0BAAEAEB2135F4F76)
 
 If you have any questions, feel free to contact zhiqiang201@buaa.edu.cn
