@@ -1,3 +1,6 @@
+'''
+This code is can be used to reproduce Supplementary Fig. 6
+'''
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -161,20 +164,14 @@ diff_df = df.drop(columns=['DAGUnet']).copy()
 for col in diff_df.columns:
     diff_df[col] = ((diff_df[col] - baseline) / baseline) * 100
 
-# 1. 自定义你想要的刻度和颜色区间
-# 根据你的需求，在 0-60 之间设置更密集的区间，极大值单独划入一个大区间
 custom_boundaries = [0, 2, 5, 10, 15, 20, 25, 30, 40, 50]
 
-# 2. 创建分级 Norm 和新的配色方案
-# 'rocket_r' 是一种非常现代且专业的单向色带，避开了红蓝配色
 cmap = sns.color_palette("flare", as_cmap=True)
 norm = mcolors.BoundaryNorm(boundaries=custom_boundaries, ncolors=cmap.N)
-# 2. 准备 Y 轴标签 (从 1 到 7)
 y_labels = [1, 2, 3, 4, 5, 6, 7]
 
 plt.figure(figsize=(12, 5))
 
-# 3. 绘图
 ax = sns.heatmap(diff_df, 
                  annot=True, 
                  fmt=".1f", 
@@ -183,14 +180,12 @@ ax = sns.heatmap(diff_df,
                  linewidths=0.3,
                  annot_kws={"size": 9},
                  yticklabels=y_labels,
-                 # 关键：cbar_kws 设置刻度显示
                  cbar_kws={
                      "ticks": custom_boundaries, 
                      "label": "RMSE Change (%)",
                      "extend": "max",
-                     "pad": 0.02,     # 核心修改：减小此值可以让 colorbar 向左移动靠近热力图
+                     "pad": 0.02,
                      "shrink": 0.8
-                    #  "spacing": "proportional" # 让刻度在条形图上按数值比例分布
                  }
                  )
 
