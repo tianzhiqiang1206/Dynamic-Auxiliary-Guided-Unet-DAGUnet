@@ -200,7 +200,7 @@ def main():
             #     save_path = true_save_path
             # )
             
-            true_save_path = OUTPUT_DIR / f"true_windrose_7days_{year_start}_{year_end}.png"
+            true_save_path = OUTPUT_DIR / f"true_windrose_{year_start}_{year_end}.png"
             plot_windrose(
                 final_directions_true,
                 final_speeds_true,
@@ -209,7 +209,7 @@ def main():
                 year_range=year_range
             )
             
-            pred_save_path = OUTPUT_DIR / f"pred_{model_name}_windrose_7days_{year_start}_{year_end}.png"
+            pred_save_path = OUTPUT_DIR / f"pred_{model_name}_windrose_{year_start}_{year_end}.png"
             plot_windrose(
                 final_directions_pred,
                 final_speeds_pred,
