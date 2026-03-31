@@ -23,8 +23,8 @@ def run_experiment(year_list):
 
     era5_data = xr.open_dataset(r'data\\era5_data_masked.nc')
     sic_data = xr.open_dataset(r'data\\sic_masked_with_sic.nc')
-    siv_data = xr.open_dataset(r'data\\siv_masked_with_siv.nc')
-    sit_data = xr.open_dataset(r'data\\sit_masked_with_sit.nc')
+    siv_data = xr.open_dataset(r'data\\siv_masked_with_sic.nc')
+    sit_data = xr.open_dataset(r'data\\sit_masked_with_sic.nc')
 
     sst = era5_data['sst'].data
     sea_ice_concentration = sic_data['sea_ice_concentration'].data
